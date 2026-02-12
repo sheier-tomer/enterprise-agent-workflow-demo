@@ -46,6 +46,7 @@ This project implements an agentic workflow orchestration backend using Python. 
                            ▼
 ┌─────────────────────────────────────────────────────────────┐
 │                    FastAPI API Layer                        │
+│  • GET /customers                                           │
 │  • POST /tasks/run                                          │
 │  • GET /tasks/{id}                                          │
 │  • GET /tasks/{id}/audit                                    │
@@ -170,7 +171,23 @@ curl http://localhost:8000/api/v1/health
 
 ## Usage
 
-### 1. Run a Workflow
+### 1. Get Customer UUIDs
+
+The workflow requires a valid customer UUID. List seeded customers via the API:
+
+```bash
+curl http://localhost:8000/api/v1/customers
+```
+
+Optional query params: `limit` (default 20, max 100) and `offset` for pagination.
+
+**Alternative — direct database query** (when using Docker):
+
+```bash
+docker exec workflow_db psql -U workflow_user -d workflow_db -t -c "SELECT id FROM customers LIMIT 5;"
+```
+
+### 2. Run a Workflow
 
 ```bash
 curl -X POST http://localhost:8000/api/v1/tasks/run \
@@ -182,13 +199,13 @@ curl -X POST http://localhost:8000/api/v1/tasks/run \
   }'
 ```
 
-### 2. Check Status
+### 3. Check Status
 
 ```bash
 curl http://localhost:8000/api/v1/tasks/{task_id}
 ```
 
-### 3. Retrieve Audit Log
+### 4. Retrieve Audit Log
 
 ```bash
 curl http://localhost:8000/api/v1/tasks/{task_id}/audit
