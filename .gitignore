@@ -57,4 +57,4 @@ htmlcov/
 docker-compose.override.yml
 
 # Alembic
-alembic/versions/*.pyc
+migrations/versions/*.pyc

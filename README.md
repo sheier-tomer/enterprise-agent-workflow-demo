@@ -211,7 +211,7 @@ EnterpriseAIWorkflow/
 │   ├── audit/                     # Audit logging
 │   ├── guardrails/                # Safety and validation
 │   └── demo_data/                 # Synthetic data generators
-├── alembic/                       # Migrations
+├── migrations/                    # Alembic migrations
 ├── tests/                         # Test suite
 ├── docker-compose.yml
 ├── Dockerfile

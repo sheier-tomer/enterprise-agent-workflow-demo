@@ -43,7 +43,8 @@ COPY --from=builder /opt/venv /opt/venv
 # Set environment variables
 ENV PATH="/opt/venv/bin:$PATH" \
     PYTHONUNBUFFERED=1 \
-    PYTHONDONTWRITEBYTECODE=1
+    PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONPATH=/app
 
 # Copy application code
 COPY --chown=appuser:appuser . .
