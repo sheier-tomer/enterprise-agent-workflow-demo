@@ -6,8 +6,8 @@ import logging
 from datetime import datetime
 from uuid import UUID, uuid4
 
-from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy import select
+from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agent.graph import execute_workflow
@@ -19,6 +19,8 @@ from app.api.schemas import (
     AuditEventSummary,
     WorkflowResult,
     HealthResponse,
+    CustomerSummary,
+    ListCustomersResponse,
 )
 from app.config import settings
 from app.db import get_session
@@ -28,6 +30,46 @@ from app.guardrails.enforcement import validate_workflow_input
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
+
+
+@router.get("/customers", response_model=ListCustomersResponse)
+async def list_customers(
+    session: AsyncSession = Depends(get_session),
+    limit: int = Query(default=20, ge=1, le=100, description="Max number of customers to return"),
+    offset: int = Query(default=0, ge=0, description="Number of customers to skip"),
+):
+    """
+    List seeded customers with their UUIDs.
+    
+    Use the returned `id` values as `customer_id` when running workflows.
+    """
+    try:
+        result = await session.execute(
+            select(Customer)
+            .order_by(Customer.created_at)
+            .limit(limit)
+            .offset(offset)
+        )
+        customers = list(result.scalars().all())
+
+        count_result = await session.execute(select(func.count()).select_from(Customer))
+        total = count_result.scalar_one()
+
+        return ListCustomersResponse(
+            customers=[
+                CustomerSummary(
+                    id=str(c.id),
+                    name=c.name,
+                    email=c.email,
+                    account_type=c.account_type,
+                )
+                for c in customers
+            ],
+            total=total,
+        )
+    except Exception as e:
+        logger.error(f"Failed to list customers: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.post("/tasks/run", response_model=RunTaskResponse, status_code=202)

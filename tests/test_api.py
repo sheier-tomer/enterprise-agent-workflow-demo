@@ -19,6 +19,35 @@ async def test_root_endpoint(test_client: AsyncClient):
 
 
 @pytest.mark.asyncio
+async def test_list_customers(test_client: AsyncClient):
+    """Test listing customers endpoint."""
+    response = await test_client.get("/api/v1/customers")
+
+    assert response.status_code == 200
+    data = response.json()
+    assert "customers" in data
+    assert "total" in data
+    assert isinstance(data["customers"], list)
+    assert isinstance(data["total"], int)
+    if data["customers"]:
+        customer = data["customers"][0]
+        assert "id" in customer
+        assert "name" in customer
+        assert "email" in customer
+        assert "account_type" in customer
+
+
+@pytest.mark.asyncio
+async def test_list_customers_pagination(test_client: AsyncClient):
+    """Test customers endpoint with limit and offset."""
+    response = await test_client.get("/api/v1/customers?limit=5&offset=0")
+
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data["customers"]) <= 5
+
+
+@pytest.mark.asyncio
 async def test_health_endpoint(test_client: AsyncClient):
     """Test health check endpoint."""
     response = await test_client.get("/api/v1/health")

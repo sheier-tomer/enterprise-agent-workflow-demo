@@ -86,6 +86,22 @@ class GetAuditResponse(BaseModel):
     events: List[AuditEventSummary]
 
 
+class CustomerSummary(BaseModel):
+    """Summary of a customer record."""
+
+    id: str = Field(description="Customer UUID")
+    name: str = Field(description="Customer name")
+    email: str = Field(description="Customer email")
+    account_type: str = Field(description="Account type: checking, savings, or business")
+
+
+class ListCustomersResponse(BaseModel):
+    """Response for listing customers."""
+
+    customers: List[CustomerSummary] = Field(description="List of customers")
+    total: int = Field(description="Total number of customers returned")
+
+
 class HealthResponse(BaseModel):
     """Health check response."""
 
