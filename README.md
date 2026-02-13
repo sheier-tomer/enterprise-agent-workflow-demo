@@ -107,7 +107,7 @@ This is the fastest way to explore the project. It spins up the API and a pre-co
 
 ```bash
 # 1. Clone the repository
-git clone <your-repo-url>
+git clone https://github.com/sheier-tomer/enterprise-agent-workflow-demo.git
 cd EnterpriseAIWorkflow
 
 # 2. Start the services
