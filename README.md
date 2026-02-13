@@ -1,42 +1,24 @@
-# Enterprise Agentic Workflow Engine (Finance Demo)
+# Enterprise Agentic Workflow Engine
 
-## Disclaimer
+## About The Project
 
-This project is a demonstration for educational and portfolio purposes.
+This repository serves as a reference implementation for an **Agentic Workflow Engine** designed for high-compliance environments, such as financial services. It demonstrates how to orchestrate complex, multi-step AI workflows while maintaining strict audit trails, guardrails, and deterministic behavior.
 
-- All data is synthetic (generated via Faker).
-- All examples are fictional.
-- Policy documents are mock representations.
-- This system is not intended for production use with real customer data.
+The core use case modeled here is **Financial Transaction Analysis**: automating the review of customer transactions to detect anomalies, cross-reference them with internal policies, and generate an explanation or escalation request.
 
-## Project Overview
-
-This project implements an agentic workflow orchestration backend using Python. It demonstrates architectural patterns for building scalable, auditable, and reliable systems.
-
-### Core Technologies
-
-- **FastAPI**: Async REST API with Pydantic validation
-- **LangGraph**: State machine orchestration with conditional routing
-- **PostgreSQL + pgvector**: Vector similarity search for RAG
-- **SQLAlchemy 2.0**: Async ORM
-- **Alembic**: Database migrations
-- **Docker**: Containerized deployment
-
-### Key Features
-
-- **Agentic Workflows**: Multi-step state machine with conditional branching
-- **Retrieval-Augmented Generation (RAG)**: Policy document retrieval using vector similarity
-- **Guardrails**: Tool allowlisting, schema validation, content filtering, and rate limiting
-- **Audit Logging**: Immutable audit trail for workflow steps
-- **Strict Validation**: Pydantic models for all inputs and outputs
-- **Dual Mode**: Supports both mock execution (no API key required) and real LLM integration (OpenAI)
-- **Testing**: Async Pytest suite with fixtures
+**Key Technical Concepts:**
+*   **Deterministic Orchestration**: Using [LangGraph](https://langchain-ai.github.io/langgraph/) to define workflows as state machines, ensuring predictable paths (Ingest → Detect → Retrieve → Decide).
+*   **Retrieval-Augmented Generation (RAG)**: Using PostgreSQL with `pgvector` to semantically search policy documents relevant to the specific anomaly.
+*   **Auditability**: Every step, tool call, and decision is logged to an immutable append-only audit trail.
+*   **Guardrails**: Input validation, content filtering, and confidence thresholds prevent "hallucinations" and unauthorized actions.
 
 ---
 
 ## Architecture
 
-### System Overview
+The system is built as an async event-driven REST API.
+
+### High-Level Design
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
@@ -50,7 +32,6 @@ This project implements an agentic workflow orchestration backend using Python. 
 │  • POST /tasks/run                                          │
 │  • GET /tasks/{id}                                          │
 │  • GET /tasks/{id}/audit                                    │
-│  • GET /health                                              │
 └──────────────────────────┬──────────────────────────────────┘
                            │
                            ▼
@@ -58,8 +39,7 @@ This project implements an agentic workflow orchestration backend using Python. 
 │              Guardrails Enforcement Layer                   │
 │  • Tool allowlist validation                                │
 │  • Pydantic schema validation                               │
-│  • Content filtering                                        │
-│  • Rate limiting                                            │
+│  • Rate limiting & Content filtering                        │
 └──────────────────────────┬──────────────────────────────────┘
                            │
                            ▼
@@ -104,108 +84,121 @@ This project implements an agentic workflow orchestration backend using Python. 
 
 ### Workflow Steps
 
-1.  **Ingest Transactions**: Analyze customer transaction history.
-2.  **Detect Anomalies**: Identify suspicious patterns.
-3.  **Retrieve Policies**: Search for relevant policy documents.
-4.  **Draft Explanation**: Generate analysis.
-5.  **Evaluate Confidence**: Route based on confidence score.
-6.  **Escalate**: Flag for review if confidence is low.
-7.  **Finalize**: Assemble result.
+1.  **Ingest Transactions**: Fetches and aggregates transaction history for the given customer.
+2.  **Detect Anomalies**: Applies statistical heuristics to identify outliers (e.g., sudden spikes, unusual merchants).
+3.  **Retrieve Policies**: Vectors are generated for the anomaly context and used to query the `policy_documents` table for relevant compliance rules.
+4.  **Draft Explanation**: An LLM (or mock agent) synthesizes the transaction data and policies into a coherent narrative.
+5.  **Evaluate Confidence**: A decision node checks the confidence score of the analysis.
+    *   **Score < 0.7**: Routes to **Escalate** (flag for human review).
+    *   **Score ≥ 0.7**: Routes to **Finalize** (auto-approve/reject).
 
 ---
 
-## Quick Start
+## Getting Started
 
 ### Prerequisites
 
-- Docker and Docker Compose
-- Git
+*   Docker & Docker Compose
+*   Git
 
 ### Option 1: Run with Docker (Recommended)
 
+This is the fastest way to explore the project. It spins up the API and a pre-configured PostgreSQL database.
+
 ```bash
-# Clone the repository
+# 1. Clone the repository
 git clone <your-repo-url>
 cd EnterpriseAIWorkflow
 
-# Start the services
+# 2. Start the services
 docker-compose up --build
 
-# The application will be available at http://localhost:8000
-# Database seeding and indexing takes approximately 30 seconds.
+# 3. Access the API
+# The app will be available at http://localhost:8000
+# Note: Initial startup takes ~30s to seed the database and build vector indexes.
 ```
 
 ### Option 2: Local Development
 
+If you wish to modify the code or run it without Docker containers for the app.
+
 ```bash
-# Install dependencies
+# 1. Install dependencies
 python3.11 -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
+source venv/bin/activate  # Windows: venv\Scripts\activate
 pip install -r requirements.txt
 
-# Set up environment
+# 2. Set up environment
 cp .env.example .env
-# Edit .env to configure database URL
+# Edit .env to set your database URL
 
-# Start PostgreSQL with pgvector
-docker-compose up db
+# 3. Start PostgreSQL (we still use Docker for the DB)
+docker-compose up db -d
 
-# Run migrations
+# 4. Run database migrations
 alembic upgrade head
 
-# Start the application
+# 5. Start the application
 python -m app.main
 ```
 
 ### Verification
 
-```bash
-# Health check
-curl http://localhost:8000/api/v1/health
+Once running, you can check the health status:
 
-# API documentation
-# Open http://localhost:8000/docs in your browser
+```bash
+curl http://localhost:8000/api/v1/health
 ```
+
+Or open the Swagger UI in your browser: [http://localhost:8000/docs](http://localhost:8000/docs)
 
 ---
 
-## Usage
+## Usage Guide
 
-### 1. Get Customer UUIDs
+### 1. Identify a Customer
 
-The workflow requires a valid customer UUID. List seeded customers via the API:
-
-```bash
-curl http://localhost:8000/api/v1/customers
-```
-
-Optional query params: `limit` (default 20, max 100) and `offset` for pagination.
-
-**Alternative — direct database query** (when using Docker):
+The system is seeded with synthetic data. First, retrieve a valid customer ID.
 
 ```bash
-docker exec workflow_db psql -U workflow_user -d workflow_db -t -c "SELECT id FROM customers LIMIT 5;"
+curl http://localhost:8000/api/v1/customers?limit=1
 ```
 
-### 2. Run a Workflow
+*Response (example):*
+```json
+[
+  {
+    "id": "a1b2c3d4-...",
+    "name": "John Doe",
+    ...
+  }
+]
+```
+
+### 2. Trigger an Analysis Workflow
+
+Use the customer ID to start an async analysis task.
 
 ```bash
 curl -X POST http://localhost:8000/api/v1/tasks/run \
   -H "Content-Type: application/json" \
   -d '{
     "customer_id": "YOUR_CUSTOMER_UUID_HERE",
-    "analysis_window_days": 30,
-    "anomaly_threshold": 0.8
+    "analysis_window_days": 30
   }'
 ```
 
-### 3. Check Status
+### 3. Retrieve Results
+
+Poll the status endpoint to get the final report and decision.
 
 ```bash
 curl http://localhost:8000/api/v1/tasks/{task_id}
 ```
 
-### 4. Retrieve Audit Log
+### 4. Inspect the Audit Trail
+
+View the step-by-step execution log to understand *why* the decision was made.
 
 ```bash
 curl http://localhost:8000/api/v1/tasks/{task_id}/audit
@@ -213,55 +206,31 @@ curl http://localhost:8000/api/v1/tasks/{task_id}/audit
 
 ---
 
-## Project Structure
-
-```
-EnterpriseAIWorkflow/
-├── app/
-│   ├── main.py                    # FastAPI entrypoint
-│   ├── config.py                  # Configuration settings
-│   ├── api/                       # API routes and schemas
-│   ├── agent/                     # LangGraph workflow definitions
-│   ├── tools/                     # Tool implementations
-│   ├── rag/                       # Vector search and embeddings
-│   ├── db/                        # Database models and session
-│   ├── audit/                     # Audit logging
-│   ├── guardrails/                # Safety and validation
-│   └── demo_data/                 # Synthetic data generators
-├── migrations/                    # Alembic migrations
-├── tests/                         # Test suite
-├── docker-compose.yml
-├── Dockerfile
-└── requirements.txt
-```
-
-## Database Schema
-
-- **customers**: Synthetic customer records.
-- **transactions**: Transaction history with anomaly labels.
-- **policy_documents**: Mock policies with vector embeddings.
-- **workflow_runs**: Execution records and results.
-- **audit_events**: Immutable audit trail.
-
 ## Configuration
 
-Configuration is managed via environment variables (see `.env.example`).
+The application is configured via environment variables. See `.env.example` for all options.
 
-- `DATABASE_URL`: Connection string for PostgreSQL.
-- `USE_MOCK_LLM`: Toggle between mock mode and real LLM usage.
-- `OPENAI_API_KEY`: Required if `USE_MOCK_LLM` is false.
-- `EMBEDDING_PROVIDER`: Options include `sentence-transformers`, `openai`, or `mock`.
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `DATABASE_URL` | PostgreSQL connection string | `postgresql+asyncpg://...` |
+| `USE_MOCK_LLM` | `true` for deterministic local runs, `false` to use OpenAI | `true` |
+| `OPENAI_API_KEY` | Required if `USE_MOCK_LLM=false` | - |
+| `EMBEDDING_PROVIDER` | `sentence-transformers` (local), `openai`, or `mock` | `sentence-transformers` |
 
-## Testing
+---
 
-```bash
-# Install test dependencies
-pip install pytest pytest-asyncio httpx
+## Project Structure
 
-# Run tests
-pytest
-```
+*   `app/agent/`: Contains the LangGraph state machine and node definitions.
+*   `app/guardrails/`: Logic for validating inputs and outputs.
+*   `app/rag/`: Vector search implementation using `pgvector`.
+*   `app/audit/`: Services for writing immutable logs to the database.
+*   `app/tools/`: The specific "skills" the agent can call (Analyzer, Detector, etc.).
 
-## License
+## Disclaimer
 
-This project is for demonstration purposes only.
+**This project is for educational and demonstration purposes only.**
+
+*   All data is synthetic (generated via `Faker`).
+*   Policy documents are mock representations.
+*   This system is not intended for production use with real customer data.
